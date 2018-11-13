@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+
+const program = require('commander')
+const ora = require('ora')
+const chalk = require('chalk')
+const download = require('download-git-repo')
+const path = require('path')
+const exsists = require('fs').existsSync
+const inquirer = require('inquirer')
+const format = require('util').format
+// const home = require('user-home')
+// const tildify = require('tildify')
+
+const prefix = '   fkoa-cli'
+const sep = chalk.gray('·')
+
+/**
+ * Usage.
+ */
+program
+  .usage('<project-name>')
+  // .option('--offline', 'use cached template')
+
+/**
+ * Help.
+ */
+program.on('--help', () => {
+  console.log('  Example:')
+  console.log()
+  console.log(chalk.gray('    # create a new project with an offical template'))
+  console.log('    $ fkoa init my-project')
+  console.log()
+})
+
+/**
+ * Help.
+ */
+function help () {
+  program.parse(process.argv)
+  if (program.args.length < 1) return program.help()
+}
+help()
+
+/**
+ * Settings.
+ */
+let rawName = program.args[0]
+// 项目名称是否存在, 如果不存在或为.则视为在当前目录下初始化
+const inPlace = !rawName || rawName === '.'
+// 默认项目名称name也为当前文件夹名。
+const name = inPlace ? path.relative('../', process.cwd()) : rawName
+// to是项目的输出路径
+const to = path.resolve(rawName || '.')
+
+// const tmp = path.join(home, 'fkoa-template')
+
+// if (program.offline) {
+//   console.log(`> Use cached template at ${chalk.yellow(tildify(tmp))}`)
+// }
+
+/**
+ * Padding.
+ */
+console.log()
+process.on('exit', () => {
+  console.log()
+})
+
+if (inPlace || exsists(to)) {
+  inquirer.prompt([{
+    type: 'confirm',
+    message: inPlace
+      ? 'Generate project in current directory?'
+      : 'Target directory exists. Continue?',
+    name: 'ok'
+  }]).then(answers => {
+    if (answers.ok) {
+      run()
+    }
+  }).catch(function (...args) {
+    if (args[0] instanceof Error) args[0] = args[0].message.trim()
+    const msg = format.apply(format, args)
+    console.error(chalk.red(prefix), sep, msg)
+    process.exit(1)
+  })
+} else {
+  run()
+}
+
+/**
+ * Download and generate the project.
+ */
+function run () {
+  const spinner = ora('downloading template...')
+  spinner.start()
+  const url = 'github:Peanut429/koa-quickstart-template'
+  download(url, to, { clone: false }, function (err) {
+    spinner.stop()
+    if (err) {
+      console.log('Fail to download repo : ' + err.message.trim())
+    } else {
+      const prev = process.cwd()
+      const targetDir = to.substring(prev.length + 1)
+      if (inPlace) {
+        console.log(chalk.yellow(`$ npm install`))
+      } else {
+        console.log(chalk.yellow(`$ cd ${targetDir}`))
+        console.log(chalk.yellow(`$ npm install`))
+      }
+      console.log()
+    }
+  })
+}
